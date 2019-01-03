@@ -522,7 +522,8 @@ do
 
     [MATCH_RULES.URI] = function(route_t, ctx)
       do
-        local uri_t = route_t.uris[ctx.hits.uri or ctx.req_uri]
+        local uri_t = route_t.uris[ctx.req_uri] or
+                      route_t.uris[ctx.hits.uri]
 
         if uri_t then
           if uri_t.is_regex then
@@ -709,7 +710,8 @@ do
     end,
 
     [MATCH_RULES.URI] = function(category, ctx)
-      return category.routes_by_uris[ctx.hits.uri or ctx.req_uri]
+      return category.routes_by_uris[ctx.req_uri] or
+             category.routes_by_uris[ctx.hits.uri]
     end,
 
     [MATCH_RULES.METHOD] = function(category, ctx)
@@ -1007,29 +1009,35 @@ function _M.new(routes)
 
     -- uri match
 
-    if plain_indexes.uris[req_uri] then
-      req_category = bor(req_category, MATCH_RULES.URI)
-
-    else
+    do
+      local prefix_match
       for i = 1, #prefix_uris do
-        if find(req_uri, prefix_uris[i].value, nil, true) == 1 then
+        prefix_match = find(req_uri, prefix_uris[i].value, nil, true) == 1
+        if prefix_match then
           hits.uri     = prefix_uris[i].value
           req_category = bor(req_category, MATCH_RULES.URI)
           break
         end
       end
 
-      for i = 1, #regex_uris do
-        local from, _, err = re_find(req_uri, regex_uris[i].regex, "ajo")
-        if err then
-          log(ERR, "could not evaluate URI regex: ", err)
-          return
+      if not prefix_match then
+        local regex_match, _, err
+        for i = 1, #regex_uris do
+          regex_match, _, err = re_find(req_uri, regex_uris[i].regex, "ajo")
+          if err then
+            log(ERR, "could not evaluate URI regex: ", err)
+            return
+          end
+
+          if regex_match then
+            hits.uri     = regex_uris[i].value
+            req_category = bor(req_category, MATCH_RULES.URI)
+            break
+          end
         end
 
-        if from then
-          hits.uri     = regex_uris[i].value
+        if not regex_match and plain_indexes.uris[req_uri] then
           req_category = bor(req_category, MATCH_RULES.URI)
-          break
         end
       end
     end

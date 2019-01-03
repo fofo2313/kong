@@ -320,7 +320,7 @@ for _, strategy in helpers.each_strategy() do
         routes1 = insert_routes {
           {
             strip_path = true,
-            paths      = { "/status/(re)" },
+            paths      = { "/status/(reg)" },
             service    = {
               name     = "regex_1",
               path     = "/status/200",
@@ -333,7 +333,7 @@ for _, strategy in helpers.each_strategy() do
         routes2 = insert_routes {
           {
             strip_path = true,
-            paths      = { "/status/(r)" },
+            paths      = { "/status/(re)" },
             service    = {
               name     = "regex_2",
               path     = "/status/200",
@@ -346,7 +346,7 @@ for _, strategy in helpers.each_strategy() do
         routes3 = insert_routes {
           {
             strip_path = true,
-            paths      = { "/status" },
+            paths      = { "/status/(r)" },
             service    = {
               name     = "regex_3",
               path     = "/status/200",
@@ -364,7 +364,7 @@ for _, strategy in helpers.each_strategy() do
       it("depends on created_at field", function()
         local res = assert(proxy_client:send {
           method  = "GET",
-          path    = "/status/r",
+          path    = "/status/re",
           headers = { ["kong-debug"] = 1 },
         })
         assert.res_status(200, res)
@@ -375,7 +375,7 @@ for _, strategy in helpers.each_strategy() do
 
         res = assert(proxy_client:send {
           method  = "GET",
-          path    = "/status/re",
+          path    = "/status/reg",
           headers = { ["kong-debug"] = 1 },
         })
         assert.res_status(200, res)
@@ -880,6 +880,44 @@ for _, strategy in helpers.each_strategy() do
         assert.equal(routes[2].service.id,   res.headers["kong-service-id"])
         assert.equal(routes[2].service.name, res.headers["kong-service-name"])
       end)
+    end)
+
+    describe("path prefixes and regexes", function()
+      local routes
+
+      lazy_setup(function()
+        routes = insert_routes {
+          {
+            strip_path = true,
+            paths      = { "/root/fixture" },
+          },
+          {
+            strip_path = true,
+            paths      = { "/root/(fixture)" },
+          }
+        }
+      end)
+
+      lazy_teardown(function()
+        remove_routes(routes)
+      end)
+
+      it("prioritizes prefixes over regexes", function()
+        local res = assert(proxy_client:send {
+          method  = "GET",
+          path    = "/root/fixture",
+          headers = {
+            ["kong-debug"] = 1,
+          }
+        })
+
+        assert.res_status(200, res)
+
+        assert.equal(routes[1].id,           res.headers["kong-route-id"])
+        assert.equal(routes[1].service.id,   res.headers["kong-service-id"])
+        assert.equal(routes[1].service.name, res.headers["kong-service-name"])
+      end)
+
     end)
 
     describe("slash handing", function()

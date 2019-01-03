@@ -449,7 +449,7 @@ describe("Router", function()
         assert.same(use_case[1].route, match_t.route)
       end)
 
-      it("matches a [uri regex] even if a [prefix uri] got a match", function()
+      it("doesn't match a [uri regex] when a [prefix uri] got a match", function()
         local use_case = {
           {
             service = service,
@@ -470,10 +470,10 @@ describe("Router", function()
         local match_t = router.select("GET", "/route/persons/123/profile",
                                       "domain.org")
         assert.truthy(match_t)
-        assert.same(use_case[2].route, match_t.route)
+        assert.same(use_case[1].route, match_t.route)
         assert.same(match_t.matches.host, nil)
         assert.same(match_t.matches.method, nil)
-        assert.same(match_t.matches.uri, [[/route/persons/\d+/profile]])
+        assert.same(match_t.matches.uri, [[/route/persons]])
         assert.same(match_t.matches.uri_captures, nil)
       end)
     end)
@@ -626,7 +626,7 @@ describe("Router", function()
           {
             service = service,
             route   = {
-              paths = { [[/users]] },
+              paths = { [[/(users)]] },
             },
             headers = {
               host  = { "*.example.com" },
